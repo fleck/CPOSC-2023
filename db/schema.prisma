@@ -1,0 +1,314 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Api {
+  id               Int       @id @default(autoincrement())
+  product_id_regex String?   @db.VarChar
+  url              String?   @db.VarChar
+  parameters       String?   @db.VarChar
+  created_at       DateTime? @db.Timestamp(6)
+  updated_at       DateTime? @db.Timestamp(6)
+  indexers         Indexer[]
+
+  @@map("apis")
+}
+
+enum Align {
+  LEFT
+  CENTER
+  RIGHT
+}
+
+model ComparisonColumn {
+  id         BigInt   @id @default(autoincrement())
+  itemId     Int      @map("item_id")
+  name       String   @db.VarChar
+  position   Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  subject    Boolean  @default(false)
+  align      Align    @default(LEFT)
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId], name: "index_comparison_columns_on_item_id")
+  @@map(name: "comparison_columns")
+}
+
+model Datum {
+  id                         Int       @id @default(autoincrement())
+  name                       String    @db.VarChar
+  url                        String    @default("")
+  text                       String    @default("")
+  updated_at                 DateTime  @updatedAt
+  group                      String    @default("") @db.VarChar
+  dynamic                    Boolean   @default(false)
+  digitsAfterDecimal         Int?      @map("digits_after_decimal")
+  prefix                     String    @default("")
+  postfix                    String    @default("")
+  global                     Boolean   @default(false)
+  indexError                 String    @default("")
+  indexerId                  Int?      @map("indexer_id")
+  affiliate_link             String    @default("")
+  last_attempted_update      DateTime? @default(dbgenerated("'2015-08-28 16:48:03'::timestamp without time zone")) @db.Timestamp(6)
+  force_digits_after_decimal Boolean   @default(false)
+  last_index_response        String    @default("")
+  fileId                     Int?
+
+  image      File?      @relation(fields: [fileId], references: [id])
+  indexer    Indexer?   @relation(fields: [indexerId], references: [id])
+  properties Property[] @relation
+
+  @@index([indexerId], name: "index_data_on_indexer_id")
+  @@map("data")
+}
+
+model File {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  hash        String   @unique
+  name        String
+  description String   @default("")
+  contentType String
+  metadata    Json     @default("{}")
+  byteSize    Int
+  serviceName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  data        Datum[]
+}
+
+model Embed {
+  id           BigInt   @id @default(autoincrement())
+  url          String?
+  item_id      Int?
+  created_at   DateTime @db.Timestamp(6)
+  updated_at   DateTime @db.Timestamp(6)
+  query_params Json?
+  items        Item?    @relation(fields: [item_id], references: [id])
+
+  @@unique([url, query_params], name: "index_embeds_on_url_and_query_params")
+  @@index([item_id], name: "index_embeds_on_item_id")
+  @@map("embeds")
+}
+
+enum IndexerType {
+  CSS
+  XPATH
+  JSON
+  TEXT
+}
+
+model Indexer {
+  id                    Int         @id @default(autoincrement())
+  name                  String
+  hostname              String
+  pathExtension         String      @default("")
+  decimalPlaces         Int?
+  cookie                String      @default("")
+  indexType             IndexerType @default(CSS)
+  apiId                 Int?
+  replacements          Json        @default("[]")
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  nextIndexerId         Int?        @unique
+  selectorToClick       String      @default("")
+  searchParams          Json        @default("{}")
+  decodeUrl             Boolean     @default(false)
+  keepOldValue          Boolean     @default(true)
+  secondsBetweenUpdates Int         @default(39600)
+  requestHeaders        Json        @default("{}")
+  selectors             Json        @default("[]")
+  slice                 String      @default("")
+
+  apis            Api?     @relation(fields: [apiId], references: [id])
+  nextIndexer     Indexer? @relation(name: "nextIndexer", fields: [nextIndexerId], references: [id])
+  Datum           Datum[]
+  previousIndexer Indexer? @relation("nextIndexer")
+
+  @@index([apiId], name: "index_indexers_on_api_id")
+  @@map("indexers")
+}
+
+enum ItemType {
+  COMPARISON
+  PAGE
+  LIST
+  TEXT
+}
+
+model Item {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar
+  url          String    @db.VarChar
+  content      String
+  contentState Json?
+  genericName  String    @default("") @map("generic_name") @db.VarChar
+  created_at   DateTime? @db.Timestamp(6)
+  updated_at   DateTime? @db.Timestamp(6)
+  type         ItemType  @default(PAGE)
+  standalone   Boolean   @default(false)
+  domain_id    Int       @default(1)
+
+  comparisonColumns ComparisonColumn[]
+
+  embeds Embed[]
+
+  children Child[] @relation("parent")
+
+  parents Child[] @relation("item")
+
+  properties Property[]
+
+  cachedUrls CachedUrl[]
+
+  importedItems Item[] @relation("ItemImports")
+
+  references Item[] @relation("ItemImports")
+
+  Redirect Redirect[]
+
+  @@unique([url, domain_id], name: "index_items_on_url_and_domain_id")
+  @@index([type], name: "items_item_kind_id_fk")
+  @@index([name], name: "items_name")
+  @@map(name: "items")
+}
+
+enum TitleType {
+  SPECIFIC
+  GENERIC
+}
+
+model Child {
+  id            Int       @id @default(autoincrement())
+  parent_id     Int
+  item_id       Int
+  titleType     TitleType @default(SPECIFIC) @map("title_type")
+  hidden        Boolean   @default(false)
+  preview       Boolean?  @default(false)
+  copy_item     Boolean?  @default(false)
+  copy_sort_by  String?   @db.VarChar
+  copy_position Int       @default(0)
+  position      Int?
+
+  item Item @relation(fields: [item_id], references: [id], name: "item", onDelete: Cascade)
+
+  parent Item @relation(fields: [parent_id], references: [id], name: "parent", onDelete: Cascade)
+
+  @@index([item_id], name: "index_children_child")
+  @@index([parent_id], name: "index_children_parent")
+  @@map("children")
+}
+
+model Property {
+  id         BigInt   @id @default(autoincrement())
+  datum_id   Int
+  item_id    Int?
+  featured   Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  position   Int?
+
+  item Item? @relation(fields: [item_id], references: [id])
+
+  datum Datum @relation(fields: [datum_id], references: [id])
+
+  propertyTemplates PropertyTemplate[]
+
+  @@index([datum_id], name: "index_properties_on_datum_id")
+  @@index([item_id], name: "index_properties_on_item_id")
+  @@map("properties")
+}
+
+model PropertyTemplate {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  hostnames String[]
+
+  properties Property[]
+}
+
+model User {
+  id             Int      @id @default(autoincrement())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  name           String?
+  email          String   @unique
+  hashedPassword String?
+  role           String   @default("USER")
+
+  tokens   Token[]
+  sessions Session[]
+}
+
+model Session {
+  id                 Int       @id @default(autoincrement())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  expiresAt          DateTime?
+  handle             String    @unique
+  hashedSessionToken String?
+  antiCSRFToken      String?
+  publicData         String?
+  privateData        String?
+
+  user   User? @relation(fields: [userId], references: [id])
+  userId Int?
+}
+
+model Token {
+  id          Int       @id @default(autoincrement())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  hashedToken String
+  type        TokenType
+  expiresAt   DateTime
+  sentTo      String
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  @@unique([hashedToken, type])
+}
+
+model CachedUrl {
+  id        BigInt   @id @default(autoincrement())
+  url       String   @unique
+  items     Item[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  headers   Json     @default("{}")
+}
+
+model Cache {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value Json
+}
+
+enum TokenType {
+  RESET_PASSWORD
+}
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Redirect {
+  id     Int    @id @default(autoincrement())
+  from   String @unique
+  to     Item   @relation(fields: [itemId], references: [id])
+  itemId Int
+}

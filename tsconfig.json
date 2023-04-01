@@ -1,0 +1,37 @@
+{
+  "extends": "@pragmatically-typed/strict/tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "baseUrl": "./",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "downlevelIteration": true,
+    "noUnusedParameters": true
+  },
+  "exclude": ["node_modules", "**/*.e2e.ts", "cypress", "packages"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "blitz-env.d.ts",
+    "types"
+  ],
+  "files": [
+    "node_modules/@pragmatically-typed/all/index.d.ts",
+    "app/core/components/TypedForm.type-test.tsx"
+  ]
+}

@@ -1,0 +1,35 @@
+let propertyIdSequence = 0
+let datumIdSequence = 0
+
+export const newProperty = () => ({
+  id: BigInt(propertyIdSequence--),
+  datum_id: 0,
+  featured: false,
+  item_id: null,
+  position: null,
+  created_at: new Date(),
+  updated_at: new Date(),
+  datum: {
+    id: datumIdSequence--,
+    featured: false,
+    name: "",
+    url: "",
+    text: "",
+    group: "",
+    dynamic: false,
+    updated_at: new Date(),
+    digitsAfterDecimal: null,
+    prefix: "",
+    postfix: "",
+    global: false,
+    indexError: "",
+    indexerId: null,
+    affiliate_link: "",
+    last_attempted_update: null,
+    force_digits_after_decimal: false,
+    last_index_response: "",
+    fileId: null,
+    image: null,
+    indexer: null,
+  },
+})
